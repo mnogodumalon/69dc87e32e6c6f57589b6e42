@@ -3,7 +3,6 @@ import { ActionsProvider } from '@/context/ActionsContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Layout } from '@/components/Layout';
 import DashboardOverview from '@/pages/DashboardOverview';
-import { WorkflowPlaceholders } from '@/components/WorkflowPlaceholders';
 import AdminPage from '@/pages/AdminPage';
 import MedikamentePage from '@/pages/MedikamentePage';
 import PackungenPage from '@/pages/PackungenPage';
@@ -16,7 +15,7 @@ export default function App() {
         <ActionsProvider>
           <Routes>
             <Route element={<Layout />}>
-              <Route index element={<><div className="mb-8"><WorkflowPlaceholders /></div><DashboardOverview /></>} />
+              <Route index element={<DashboardOverview />} />
               <Route path="medikamente" element={<MedikamentePage />} />
               <Route path="packungen" element={<PackungenPage />} />
               <Route path="medikamenten-uebersicht" element={<MedikamentenUebersichtPage />} />
