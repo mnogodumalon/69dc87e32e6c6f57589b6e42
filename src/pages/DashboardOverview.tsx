@@ -18,7 +18,7 @@ import {
   IconAlertCircle, IconTool, IconRefresh, IconCheck,
   IconPill, IconPackage, IconPlus, IconPencil, IconTrash,
   IconSun, IconCloud, IconMoon, IconZzz, IconAlertTriangle,
-  IconCalendar, IconHistory
+  IconCalendar, IconHistory, IconChevronRight, IconMedicineSyrup
 } from '@tabler/icons-react';
 
 const APPGROUP_ID = '69dc87e32e6c6f57589b6e42';
@@ -325,6 +325,21 @@ export default function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Intent Workflows */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a
+          href="#/intents/packung-anbrechen"
+          className="bg-card border border-border border-l-4 border-l-primary rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-center gap-3 min-w-0"
+        >
+          <IconMedicineSyrup size={22} className="text-primary shrink-0" stroke={1.5} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground truncate">Packung anbrechen</p>
+            <p className="text-xs text-muted-foreground truncate">Medikament wählen, Packung öffnen & Dosierung festlegen</p>
+          </div>
+          <IconChevronRight size={16} className="text-muted-foreground shrink-0" stroke={1.5} />
+        </a>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
