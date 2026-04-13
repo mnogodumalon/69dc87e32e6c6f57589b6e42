@@ -1,0 +1,7 @@
+- Medikamente (medikamente): name[string/text], wirkstoff[string/text], hersteller[string/text], packungsgroesse[number], einheit[lookup/select], notizen[string/textarea], woechentlich[bool], dosierung_morgens[lookup/radio], dosierung_mittags[lookup/radio], dosierung_abends[lookup/radio], dosierung_nacht[lookup/radio]
+- Dosierung (dosierung): packung_ref[applookup/select], gueltig_ab[date/date], woechentlich_dosierung[bool], dosierung_morgens_aenderung[lookup/radio], dosierung_mittags_aenderung[lookup/radio], dosierung_abends_aenderung[lookup/radio], dosierung_nacht_aenderung[lookup/radio], bemerkungen_aenderung[string/textarea]
+  → packung_ref links to app_id 69dc87c631321f9f593c8572
+- Packungen (packungen): dosierungsaenderungen[multiplelookup/select], anbruch_datum[date/date], medikament[applookup/select], anfangsmenge[number], nachbestellt[bool], nachbestelldatum[date/date]
+  → medikament links to app_id 69dc87c2471f4e810f91d118
+- Medikamenten-Übersicht (medikamenten_uebersicht): uebersicht_datum[date/date], laufende_packungen[applookup/select], hinweis[string/textarea]
+  → laufende_packungen links to app_id 69dc87c631321f9f593c8572
