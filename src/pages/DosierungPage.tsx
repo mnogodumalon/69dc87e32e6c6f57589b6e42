@@ -74,7 +74,7 @@ export default function DosierungPage() {
   function getPackungenDisplayName(url?: unknown) {
     if (!url) return '—';
     const id = extractRecordId(url);
-    return packungenList.find(r => r.record_id === id)?.fields.dosierungsaenderungen ?? '—';
+    return packungenList.find(r => r.record_id === id)?.record_id ?? '—';
   }
 
   const filtered = records.filter(r => {

@@ -28,7 +28,7 @@ export function DosierungViewDialog({ open, onClose, record, onEdit, packungenLi
   function getPackungenDisplayName(url?: unknown) {
     if (!url) return '—';
     const id = extractRecordId(url);
-    return packungenList.find(r => r.record_id === id)?.fields.dosierungsaenderungen ?? '—';
+    return packungenList.find(r => r.record_id === id)?.record_id ?? '—';
   }
 
   if (!record) return null;

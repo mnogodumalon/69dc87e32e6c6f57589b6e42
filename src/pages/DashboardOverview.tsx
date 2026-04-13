@@ -30,6 +30,8 @@ import {
   IconTool,
   IconRefresh,
   IconAlertCircle,
+  IconChevronRight,
+  IconAdjustments,
 } from '@tabler/icons-react';
 
 const APPGROUP_ID = '69dc87e32e6c6f57589b6e42';
@@ -320,6 +322,30 @@ export default function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Workflow-Navigation */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a href="#/intents/neue-packung" className="bg-card border border-border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-center gap-3 border-l-4 border-l-primary overflow-hidden">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <IconPackage size={18} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground text-sm truncate">Neue Packung einlegen</p>
+            <p className="text-xs text-muted-foreground truncate">Medikament auswählen, Packung anlegen, Dosierung anpassen</p>
+          </div>
+          <IconChevronRight size={16} className="text-muted-foreground shrink-0" />
+        </a>
+        <a href="#/intents/dosierung-anpassen" className="bg-card border border-border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-center gap-3 border-l-4 border-l-primary overflow-hidden">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <IconAdjustments size={18} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground text-sm truncate">Dosierung anpassen</p>
+            <p className="text-xs text-muted-foreground truncate">Dosierungsänderung für eine aktive Packung erfassen</p>
+          </div>
+          <IconChevronRight size={16} className="text-muted-foreground shrink-0" />
+        </a>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

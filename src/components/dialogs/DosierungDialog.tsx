@@ -384,7 +384,7 @@ export function DosierungDialog({ open, onClose, onSubmit, defaultValues, packun
                 <SelectItem value="none">—</SelectItem>
                 {packungenList.map(r => (
                   <SelectItem key={r.record_id} value={r.record_id}>
-                    {r.fields.dosierungsaenderungen ?? r.record_id}
+                    {r.record_id}
                   </SelectItem>
                 ))}
               </SelectContent>
