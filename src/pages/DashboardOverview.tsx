@@ -18,7 +18,7 @@ import {
   IconAlertCircle, IconTool, IconRefresh, IconCheck,
   IconPlus, IconPencil, IconTrash, IconPill,
   IconPackage, IconAlertTriangle, IconCircleCheck,
-  IconClock,
+  IconClock, IconChevronRight, IconStethoscope,
 } from '@tabler/icons-react';
 
 const APPGROUP_ID = '69dc87e32e6c6f57589b6e42';
@@ -96,6 +96,21 @@ export default function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Workflow-Navigation */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a
+          href="#/intents/medikament-einrichten"
+          className="flex items-center gap-3 bg-card border border-border border-l-4 border-l-primary rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow no-underline"
+        >
+          <IconStethoscope size={22} className="text-primary shrink-0" stroke={1.5} />
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-sm text-foreground truncate">Neues Medikament einrichten</div>
+            <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">Medikament anlegen, Packung erfassen und Dosierung festlegen – Schritt für Schritt.</div>
+          </div>
+          <IconChevronRight size={16} className="text-muted-foreground shrink-0" stroke={1.5} />
+        </a>
+      </div>
+
       {/* KPI-Karten */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
