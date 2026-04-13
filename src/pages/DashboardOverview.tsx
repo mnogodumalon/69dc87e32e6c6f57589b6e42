@@ -1,7 +1,7 @@
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { enrichPackungen } from '@/lib/enrich';
 import type { EnrichedPackungen } from '@/types/enriched';
-import type { Medikamente } from '@/types/app';
+import type { Medikamente, Dosierung } from '@/types/app';
 import { APP_IDS } from '@/types/app';
 import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
 import { formatDate } from '@/lib/formatters';
@@ -18,7 +18,8 @@ import {
   IconAlertCircle, IconTool, IconRefresh, IconCheck,
   IconPill, IconPackage, IconPlus, IconPencil, IconTrash,
   IconSun, IconCloud, IconMoon, IconZzz, IconAlertTriangle,
-  IconCalendar, IconHistory, IconChevronRight, IconMedicineSyrup
+  IconCalendar, IconHistory, IconChevronRight, IconMedicineSyrup,
+  IconClock,
 } from '@tabler/icons-react';
 
 const APPGROUP_ID = '69dc87e32e6c6f57589b6e42';
@@ -42,6 +43,104 @@ function getDosisLabel(val: unknown): string | null {
   }
   return null;
 }
+
+// ── Prognose-Hilfsfunktionen ──────────────────────────────────────────────────
+
+function parseDoseValue(val: { key: string } | undefined): number {
+  if (!val || val.key === 'd0') return 0;
+  if (val.key === 'd025') return 0.25;
+  if (val.key === 'd05') return 0.5;
+  if (val.key === 'd1') return 1;
+  return 0;
+}
+
+function calcDailyDose(
+  morgens: { key: string } | undefined,
+  mittags: { key: string } | undefined,
+  abends: { key: string } | undefined,
+  nacht: { key: string } | undefined,
+): number {
+  return parseDoseValue(morgens) + parseDoseValue(mittags) + parseDoseValue(abends) + parseDoseValue(nacht);
+}
+
+function calcLeerDatum(
+  pack: EnrichedPackungen,
+  med: Medikamente | undefined,
+  dosierungen: Dosierung[],
+): Date | null {
+  if (!pack.fields.anbruch_datum || !pack.fields.anfangsmenge || !med) return null;
+
+  const startDate = new Date(pack.fields.anbruch_datum);
+  const anfangsmenge = pack.fields.anfangsmenge;
+  const woechentlich = med.fields.woechentlich ?? false;
+
+  const baseDose = calcDailyDose(
+    med.fields.dosierung_morgens,
+    med.fields.dosierung_mittags,
+    med.fields.dosierung_abends,
+    med.fields.dosierung_nacht,
+  );
+  if (baseDose <= 0) return null;
+
+  const baseDaily = woechentlich ? baseDose / 7 : baseDose;
+
+  // Dosierungs-Änderungen: nur nach Anbruchdatum, sortiert aufsteigend
+  const changes = dosierungen
+    .filter(d => d.fields.gueltig_ab)
+    .map(d => {
+      const dose = calcDailyDose(
+        d.fields.dosierung_morgens_aenderung,
+        d.fields.dosierung_mittags_aenderung,
+        d.fields.dosierung_abends_aenderung,
+        d.fields.dosierung_nacht_aenderung,
+      );
+      const weekly = d.fields.woechentlich_dosierung ?? woechentlich;
+      return { from: new Date(d.fields.gueltig_ab!), daily: weekly ? dose / 7 : dose };
+    })
+    .filter(c => c.from >= startDate)
+    .sort((a, b) => a.from.getTime() - b.from.getTime());
+
+  const segments: { from: Date; daily: number }[] = [{ from: startDate, daily: baseDaily }, ...changes];
+  let remaining = anfangsmenge;
+
+  for (let i = 0; i < segments.length; i++) {
+    const segStart = segments[i].from;
+    const segEnd = i < segments.length - 1 ? segments[i + 1].from : null;
+    const daily = segments[i].daily;
+
+    if (daily <= 0) {
+      if (!segEnd) return null;
+      continue;
+    }
+
+    if (!segEnd) {
+      const leerDate = new Date(segStart);
+      leerDate.setDate(leerDate.getDate() + Math.round(remaining / daily));
+      return leerDate;
+    }
+
+    const daysInSeg = (segEnd.getTime() - segStart.getTime()) / 86400000;
+    const consumed = daysInSeg * daily;
+
+    if (consumed >= remaining) {
+      const leerDate = new Date(segStart);
+      leerDate.setDate(leerDate.getDate() + Math.round(remaining / daily));
+      return leerDate;
+    }
+    remaining -= consumed;
+  }
+  return null;
+}
+
+function getDaysClass(days: number): string {
+  if (days <= 0) return 'text-destructive bg-destructive/10 border-destructive/20';
+  if (days <= 7) return 'text-red-600 bg-red-50 border-red-200';
+  if (days <= 14) return 'text-amber-600 bg-amber-50 border-amber-200';
+  if (days <= 30) return 'text-yellow-700 bg-yellow-50 border-yellow-200';
+  return 'text-green-700 bg-green-50 border-green-200';
+}
+
+// ── Komponenten ───────────────────────────────────────────────────────────────
 
 function DosierungBadges({ med }: { med: Medikamente }) {
   const slots = [
@@ -244,14 +343,12 @@ export default function DashboardOverview() {
   const [packDialogOpen, setPackDialogOpen] = useState(false);
   const [editPackung, setEditPackung] = useState<EnrichedPackungen | null>(null);
   const [deletePackung, setDeletePackung] = useState<EnrichedPackungen | null>(null);
-  const [newPackungForMed, setNewPackungForMed] = useState<string | null>(null); // medikament record_id
+  const [newPackungForMed, setNewPackungForMed] = useState<string | null>(null);
 
   const [filterText, setFilterText] = useState('');
   const [activeTab, setActiveTab] = useState<'alle' | 'taeglich' | 'woechentlich'>('alle');
 
-  // Suppress unused variable warnings — enriched data used for type completeness
   void medikamentenUebersicht;
-  void dosierung;
   void packungenMap;
 
   const filteredMedikamente = useMemo(() => {
@@ -279,6 +376,43 @@ export default function DashboardOverview() {
     }).length;
     return { total, taeglich, woePerWoche, niedrigBestand };
   }, [medikamente, enrichedPackungen]);
+
+  // Reichweiten-Prognose: für jede Packung mit Anbruchdatum berechnen, wann sie leer ist
+  const packungsPrognosen = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return enrichedPackungen
+      .filter(p => p.fields.anbruch_datum && (p.fields.anfangsmenge ?? 0) > 0)
+      .map(p => {
+        const medId = extractRecordId(p.fields.medikament);
+        const med = medId ? medikamenteMap.get(medId) : undefined;
+        const packDosierungen = dosierung.filter(d => extractRecordId(d.fields.packung_ref) === p.record_id);
+        const leerDatum = calcLeerDatum(p, med, packDosierungen);
+        const tageBisLeer = leerDatum
+          ? Math.round((leerDatum.getTime() - today.getTime()) / 86400000)
+          : null;
+
+        const woechentlich = med?.fields.woechentlich ?? false;
+        const baseDose = med
+          ? calcDailyDose(
+              med.fields.dosierung_morgens,
+              med.fields.dosierung_mittags,
+              med.fields.dosierung_abends,
+              med.fields.dosierung_nacht,
+            )
+          : 0;
+        const einheit = med?.fields.einheit?.label ?? '';
+        const doseLabel =
+          baseDose > 0
+            ? `${baseDose.toLocaleString('de-DE')} ${einheit}/${woechentlich ? 'Woche' : 'Tag'}`
+            : '–';
+
+        return { packung: p, med, leerDatum, tageBisLeer, doseLabel };
+      })
+      .filter(item => item.leerDatum !== null)
+      .sort((a, b) => a.leerDatum!.getTime() - b.leerDatum!.getTime());
+  }, [enrichedPackungen, medikamenteMap, dosierung]);
 
   const handleOpenAddMed = () => {
     setEditMed(null);
@@ -367,6 +501,73 @@ export default function DashboardOverview() {
           icon={<IconAlertTriangle size={18} className={stats.niedrigBestand > 0 ? 'text-amber-500' : 'text-muted-foreground'} />}
         />
       </div>
+
+      {/* Reichweiten-Prognose */}
+      {packungsPrognosen.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <IconClock size={15} className="text-muted-foreground shrink-0" stroke={1.5} />
+            <h2 className="text-sm font-semibold text-foreground">Reichweiten-Prognose</h2>
+            <span className="text-xs text-muted-foreground ml-1">· sortiert nach Aufbrauch</span>
+          </div>
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2.5">Medikament</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2.5 hidden sm:table-cell">Anbruch</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2.5 hidden md:table-cell">Tagesdosis</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2.5">Leer am</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2.5">Tage bis leer</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {packungsPrognosen.map(({ packung, med, leerDatum, tageBisLeer, doseLabel }) => (
+                    <tr key={packung.record_id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {tageBisLeer !== null && tageBisLeer <= 7 && (
+                            <IconAlertTriangle size={13} className="text-red-500 shrink-0" stroke={2} />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">
+                              {med?.fields.name ?? packung.medikamentName ?? '–'}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {packung.fields.anfangsmenge ?? '–'} {med?.fields.einheit?.label ?? ''}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {packung.fields.anbruch_datum ? formatDate(packung.fields.anbruch_datum) : '–'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{doseLabel}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-medium text-foreground whitespace-nowrap">
+                          {leerDatum ? formatDate(leerDatum.toISOString().slice(0, 10)) : '–'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {tageBisLeer !== null && (
+                          <span className={`inline-flex items-center justify-center text-xs font-semibold px-2 py-0.5 rounded-full border ${getDaysClass(tageBisLeer)}`}>
+                            {tageBisLeer <= 0 ? 'leer' : `${tageBisLeer} Tage`}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
